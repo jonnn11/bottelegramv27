@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jon Panel</title>
+
+<style>
+body{margin:0;font-family:Arial;background:#0b1220;color:#fff}
+.card{width:360px;margin:auto;margin-top:50px;background:#111827;padding:16px;border-radius:12px}
+input,textarea{width:100%;padding:10px;margin-top:8px;border:none;border-radius:8px;background:#0b1220;color:#fff}
+button{width:100%;margin-top:8px;padding:10px;border:none;border-radius:8px;cursor:pointer}
+.blue{background:#3b82f6}
+.green{background:#22c55e}
+.red{background:#ef4444}
+#otpBox{display:none}
+.status{position:fixed;bottom:0;left:0;right:0;background:#0f172a;padding:10px;text-align:center}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+<h3 style="text-align:center">Jon Panel</h3>
+
+<input id="api_id" placeholder="API ID">
+<input id="api_hash" placeholder="API HASH">
+<input id="phone" placeholder="+62...">
+
+<button class="blue" onclick="sendCode()">Kirim OTP</button>
+
+<div id="otpBox">
+<input id="code" placeholder="OTP">
+<button class="green" onclick="verify()">Verify</button>
+</div>
+
+<hr>
+
+<div id="msgList"></div>
+<button class="green" onclick="addMsg()">+ Pesan</button>
+
+<input id="delay" placeholder="Delay">
+
+<button class="blue" onclick="startSend()">START</button>
+<button class="red" onclick="stopSend()">STOP</button>
+</div>
+
+<div class="status" id="status">Idle</div>
+
+<script>
+
+const BASE = ""; // 🔥 AUTO CONNECT
+
+let cid = localStorage.getItem("cid") || Math.random().toString(36).substr(2);
+localStorage.setItem("cid", cid);
+
+let running = false;
+
+function setStatus(t){
+document.getElementById("status").innerText = t;
+}
+
+async function post(url,data){
+try{
+let r = await fetch(BASE + url,{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify(data)
+});
+return await r.json();
+}catch(e){
+return {status:"error",message:"server offline"};
+}
+}
+
+async function sendCode(){
+setStatus("sending otp...");
+let r = await post("/send_code",{
+api_id:api_id.value,
+api_hash:api_hash.value,
+phone:phone.value
+});
+otpBox.style.display="block";
+setStatus(r.message);
+}
+
+async function verify(){
+let r = await post("/verify",{code:code.value});
+setStatus(r.message);
+}
+
+function addMsg(){
+let d=document.createElement("div");
+d.innerHTML=`
+<textarea placeholder="message"></textarea>
+<input placeholder="@group1,@group2">
+`;
+msgList.appendChild(d);
+}
+
+async function startSend(){
+
+let targets=[];
+
+document.querySelectorAll("#msgList div").forEach(d=>{
+let msg=d.children[0].value;
+let groups=(d.children[1].value||"").split(",");
+
+targets.push({message:msg,groups});
+});
+
+running=true;
+
+let delay=parseInt(delay.value||3);
+
+let r=await post("/start",{
+targets,
+delay,
+client_id:cid
+});
+
+setStatus(r.message);
+}
+
+async function stopSend(){
+running=false;
+await post("/stop",{});
+setStatus("stopped");
+}
+
+</script>
+
+</body>
+</html>
